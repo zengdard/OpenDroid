@@ -2,6 +2,7 @@ package com.opendroid.tool.impl
 
 import com.opendroid.data.model.ToolParameter
 import com.opendroid.data.model.ToolSpec
+import com.opendroid.termux.TermuxBridge
 import com.opendroid.tool.Args
 import com.opendroid.tool.Tool
 import com.opendroid.tool.ToolContext
@@ -12,9 +13,10 @@ import org.json.JSONObject
 class BashTool : Tool {
     override val spec = ToolSpec(
         id = "bash",
-        description = "Exécuter une commande shell. Utile pour lire/écrire des fichiers, " +
-            "lister des répertoires, diagnostiquer le système, ou toute commande disponible. " +
-            "Avec root=true, la commande passe par `su -c` (appareil rooté uniquement).",
+        description = "Shell Android minimal de l'app (fichiers, ls/cat, dumpsys, pm, am). " +
+            "Pour l'environnement Termux (pkg/apt/python/pip/git/node, \$PREFIX), utilise " +
+            "l'outil `termux` — les commandes Termux sont aussi routées automatiquement. " +
+            "Avec root=true, passe par `su -c` (appareil rooté uniquement).",
         category = "system",
         parameters = listOf(
             ToolParameter("command", "string", "Commande shell à exécuter"),
@@ -31,11 +33,18 @@ class BashTool : Tool {
         val timeout = Args.int(args, "timeout", 15).toLong()
         val root = Args.bool(args, "root", false)
 
-        val result = Shell.run(command, timeout, root)
+        // Si la commande cible clairement l'environnement Termux, on y va directement.
+        val viaTermux = !root && TermuxBridge.isInstalled(context.appContext) && looksLikeTermux(command)
+        val result = if (viaTermux) {
+            TermuxBridge.run(context.appContext, command, timeout.coerceAtLeast(30))
+        } else {
+            Shell.run(command, timeout, root)
+        }
         if (result.timedOut) {
             return ToolResult.error("Commande interrompue (timeout ${timeout}s)")
         }
         val output = buildString {
+            if (viaTermux) append("[termux]\n")
             if (result.stdout.isNotBlank()) append(result.stdout.trim().take(6000))
             if (result.stderr.isNotBlank()) {
                 if (isNotEmpty()) append('\n')
@@ -48,5 +57,13 @@ class BashTool : Tool {
             isError = !result.ok,
             data = mapOf("exit_code" to result.exitCode)
         )
+    }
+
+    private fun looksLikeTermux(command: String): Boolean {
+        val c = command.lowercase()
+        return listOf(
+            "termux", "\$prefix", "pkg ", "apt ", "apt-get", "pip ", "pip3",
+            "python", "node ", "npm ", "yarn", "git "
+        ).any { c.contains(it) }
     }
 }

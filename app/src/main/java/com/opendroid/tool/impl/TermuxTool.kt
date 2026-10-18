@@ -16,8 +16,10 @@ import org.json.JSONObject
 class TermuxTool : Tool {
     override val spec = ToolSpec(
         id = "termux",
-        description = "Exécuter une commande dans l'environnement Termux (bash, pkg/apt, python, git…). " +
-            "Nécessite Termux installé, allow-external-apps=true et la permission RUN_COMMAND.",
+        description = "Exécuter une commande dans le vrai environnement Termux du téléphone " +
+            "(bash avec \$PREFIX, pkg/apt, python, pip, git, node…). À utiliser dès que " +
+            "l'utilisateur mentionne Termux ou demande un outil installé via Termux. " +
+            "Nécessite Termux + allow-external-apps=true + permission RUN_COMMAND.",
         category = "system",
         parameters = listOf(
             ToolParameter("command", "string", "Commande bash à exécuter dans Termux"),

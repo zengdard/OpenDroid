@@ -137,6 +137,11 @@ Les commandes tournent en arrière-plan et renvoient stdout, stderr et le code d
 sortie. Sans Termux installé, l'outil et l'onglet restent indisponibles avec un
 message explicite.
 
+L'outil `bash` **route automatiquement vers Termux** les commandes qui en relèvent
+(`pkg`, `apt`, `pip`, `python`, `git`, `node`, `termux`, `$PREFIX`), même si le
+modèle appelle `bash` par habitude. Pour les autres commandes, `bash` reste le
+shell minimal de l'app.
+
 ---
 
 ## 🔌 Providers
