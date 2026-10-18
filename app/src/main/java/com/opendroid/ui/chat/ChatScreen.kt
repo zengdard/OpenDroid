@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -208,7 +209,7 @@ fun ChatScreen(viewModel: OpenDroidViewModel, onOpenSettings: () -> Unit) {
                 )
             }
         ) { padding ->
-            Column(Modifier.fillMaxSize().padding(padding)) {
+            Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
                 if (state.error != null) {
                     ErrorBanner(state.error!!)
                 }
@@ -216,7 +217,7 @@ fun ChatScreen(viewModel: OpenDroidViewModel, onOpenSettings: () -> Unit) {
                     TodoStrip(state.todos)
                 }
                 if (state.messages.isEmpty() && !state.isRunning) {
-                    EmptyState()
+                    EmptyState(Modifier.weight(1f))
                 } else {
                     LazyColumn(
                         state = listState,
@@ -262,8 +263,8 @@ fun ChatScreen(viewModel: OpenDroidViewModel, onOpenSettings: () -> Unit) {
 }
 
 @Composable
-private fun EmptyState() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+private fun EmptyState(modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(spaceXL)) {
             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(72.dp)) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

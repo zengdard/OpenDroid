@@ -41,6 +41,20 @@ Principes :
 Aujourd'hui : {date}
 """
 
+    val chat = AgentConfig(
+        id = "chat",
+        name = "Chat",
+        description = "Conversation simple, sans outils ni action sur l'appareil.",
+        mode = AgentMode.PRIMARY,
+        systemPrompt = "Tu es un assistant conversationnel utile, direct et naturel. " +
+            "Réponds dans la langue de l'utilisateur, sans appeler d'outil et sans agir sur l'appareil. " +
+            "Tu peux analyser une capture d'écran si elle t'est fournie.\n\nAujourd'hui : {date}",
+        // Aucun outil : tout est refusé → mode chatbot pur.
+        permission = rules("*" to PermissionLevel.DENY),
+        temperature = 0.7f,
+        builtIn = true
+    )
+
     val build = AgentConfig(
         id = "build",
         name = "Build",
@@ -155,7 +169,7 @@ Aujourd'hui : {date}
         builtIn = true
     )
 
-    val all: List<AgentConfig> = listOf(build, plan, general, explore, scout, checker)
+    val all: List<AgentConfig> = listOf(chat, build, plan, general, explore, scout, checker)
 
     val primary: List<AgentConfig> = all.filter { it.mode == AgentMode.PRIMARY || it.mode == AgentMode.ALL }
     val subagents: List<AgentConfig> = all.filter { (it.mode == AgentMode.SUBAGENT || it.mode == AgentMode.ALL) && !it.hidden }

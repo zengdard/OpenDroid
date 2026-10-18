@@ -37,6 +37,7 @@ l'utilisateur.
 
 | Agent | Mode | Rôle |
 |---|---|---|
+| `chat` | primaire | **Chatbot pur** : conversation, aucun outil, aucune action |
 | `build` | primaire | Tous les outils activés — tâches complètes de bout en bout |
 | `plan`  | primaire | Lecture seule : analyse et propose un plan sans agir |
 | `general` | sous-agent | Polyvalent, recherche et tâches multi-étapes |
@@ -109,7 +110,7 @@ Les permissions sont évaluées comme dans opencode :
 | On-device (Gemma) | `ON_DEVICE` | LiteRT-LM, protocole d'outils XML, 100 % local |
 | **OpenCode Zen** | `OPENAI_COMPATIBLE` | `opencode.ai/inference/openai/v1` — clé `OPENCODE_API_KEY` |
 | **OpenCode Go** | `OPENAI_COMPATIBLE` | `opencode.ai/inference/go/openai/v1` — offre low-cost |
-| **DeepSeek** | `OPENAI_COMPATIBLE` | `api.deepseek.com/v1` — `deepseek-chat`, `deepseek-reasoner` |
+| **DeepSeek** | `OPENAI_COMPATIBLE` | `api.deepseek.com/v1` — `deepseek-flash` (**texte + image**), `deepseek-v4-pro` (texte) |
 | OpenAI | `OPENAI_COMPATIBLE` | `api.openai.com/v1` |
 | Anthropic | `ANTHROPIC` | API Messages, thinking étendu |
 | Google Gemini | `GOOGLE` | `streamGenerateContent` |

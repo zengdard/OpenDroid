@@ -69,7 +69,7 @@ data class ProviderConfig(
             ProviderConfig(
                 id = "deepseek", kind = ProviderKind.OPENAI_COMPATIBLE, name = "DeepSeek",
                 baseUrl = "https://api.deepseek.com/v1",
-                models = listOf("deepseek-chat", "deepseek-reasoner")
+                models = listOf("deepseek-flash", "deepseek-v4-pro", "deepseek-chat")
             ),
             ProviderConfig(
                 id = "openai", kind = ProviderKind.OPENAI_COMPATIBLE, name = "OpenAI",
