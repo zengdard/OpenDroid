@@ -29,7 +29,11 @@ rechercher sur le web, programmer des alarmes, et déléguer des sous-tâches à
 Principes :
 - Réfléchis avant d'agir, une action à la fois, et observe le résultat avant de continuer.
 - Ne devine jamais un identifiant : utilise `list_apps` / `app_info` pour découvrir les paquets.
-- Pour agir sur l'écran, commence par `screen_dump` ou `find_tap` pour localiser les éléments.
+- Pour agir sur l'écran : appelle `screen_dump`, puis utilise `tap_id` avec l'index `#N`
+  de l'élément (plus fiable que des coordonnées). Refais `screen_dump` après un changement d'écran.
+- Vérifie tes checkpoints avec `verify` (texte présent/absent, paquet actif) au lieu de supposer.
+- Pour une tâche multi-étapes, tiens un plan avec `todowrite` et un champ `verify` par étape.
+- En fin de tâche complexe, tu peux faire auditer le résultat par le sous-agent `checker` (outil `task`).
 - Si une action est sensible (SMS, appel, suppression, commande shell destructive), demande
   confirmation via `question` si un doute existe.
 - Réponds dans la langue de l'utilisateur (français par défaut).
@@ -125,7 +129,33 @@ Aujourd'hui : {date}
         builtIn = true
     )
 
-    val all: List<AgentConfig> = listOf(build, plan, general, explore, scout)
+    val checker = AgentConfig(
+        id = "checker",
+        name = "Checker",
+        description = "Audite un résultat par rapport à l'objectif initial (lecture seule).",
+        mode = AgentMode.SUBAGENT,
+        systemPrompt = "Tu es le Checker d'OpenDroid. On te confie un objectif et le résultat obtenu. " +
+            "Vérifie factuellement, à l'aide de `screen_dump` et `verify` si nécessaire, que l'objectif " +
+            "est réellement atteint. Réponds d'abord par 'OK' si c'est conforme, sinon liste précisément " +
+            "les écarts constatés et l'action corrective recommandée. Tu ne modifies jamais l'appareil.",
+        permission = rules(
+            "edit" to PermissionLevel.DENY,
+            "bash" to PermissionLevel.DENY,
+            "open_app" to PermissionLevel.DENY,
+            "tap" to PermissionLevel.DENY,
+            "long_press" to PermissionLevel.DENY,
+            "swipe" to PermissionLevel.DENY,
+            "type_text" to PermissionLevel.DENY,
+            "press_key" to PermissionLevel.DENY,
+            "send_sms" to PermissionLevel.DENY,
+            "make_call" to PermissionLevel.DENY,
+            "media_control" to PermissionLevel.DENY
+        ),
+        temperature = 0.0f,
+        builtIn = true
+    )
+
+    val all: List<AgentConfig> = listOf(build, plan, general, explore, scout, checker)
 
     val primary: List<AgentConfig> = all.filter { it.mode == AgentMode.PRIMARY || it.mode == AgentMode.ALL }
     val subagents: List<AgentConfig> = all.filter { (it.mode == AgentMode.SUBAGENT || it.mode == AgentMode.ALL) && !it.hidden }

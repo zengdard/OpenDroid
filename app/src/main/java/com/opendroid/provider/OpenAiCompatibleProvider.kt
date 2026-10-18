@@ -98,7 +98,7 @@ class OpenAiCompatibleProvider(private val config: ProviderConfig) : LlmProvider
         request.messages.forEach { m ->
             when (m.role) {
                 Role.SYSTEM -> messages.put(JSONObject().put("role", "system").put("content", m.text))
-                Role.USER -> messages.put(JSONObject().put("role", "user").put("content", m.text))
+                Role.USER -> messages.put(JSONObject().put("role", "user").put("content", userContent(m)))
                 Role.ASSISTANT -> {
                     val obj = JSONObject().put("role", "assistant")
                     obj.put("content", m.text.ifBlank { JSONObject.NULL })
@@ -135,6 +135,24 @@ class OpenAiCompatibleProvider(private val config: ProviderConfig) : LlmProvider
             body.put("tool_choice", "auto")
         }
         return body
+    }
+
+    /** Contenu d'un message user : texte simple, ou tableau texte + images. */
+    private fun userContent(message: Message): Any {
+        if (message.attachments.isEmpty()) return message.text
+        val content = JSONArray()
+        if (message.text.isNotBlank()) content.put(JSONObject().put("type", "text").put("text", message.text))
+        message.attachments.forEach { attachment ->
+            Images.readBase64(attachment.path)?.let { b64 ->
+                content.put(
+                    JSONObject().put("type", "image_url").put(
+                        "image_url",
+                        JSONObject().put("url", "data:${attachment.mimeType};base64,$b64")
+                    )
+                )
+            }
+        }
+        return content
     }
 
     private class ToolAccum {

@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.opendroid.accessibility.AccessibilityBridge
 import com.opendroid.data.model.AgentConfig
+import com.opendroid.data.model.Attachment
 import com.opendroid.data.model.Message
 import com.opendroid.data.model.PermissionConfig
 import com.opendroid.data.model.PermissionLevel
@@ -77,6 +78,16 @@ class AgentRunner(
 
         while (step < maxSteps) {
             step++
+
+            // Compression d'historique si le contexte devient trop gros.
+            val compressed = HistoryCompressor.maybeCompress(provider, model, history, sessionId)
+            if (compressed !== history && compressed.size != history.size) {
+                val before = history.size
+                history.clear()
+                history.addAll(compressed)
+                emit(AgentEvent.ContextCompressed(before, compressed.size))
+            }
+
             val specs = tools.values
                 .filter { agent.exposesTool(it.spec.id, globalPermission) }
                 .map { it.spec }
@@ -175,7 +186,9 @@ class AgentRunner(
             Log.e(TAG, "tool ${call.name} failed", e)
             ToolResult.error("Erreur d'exécution : ${e.message}")
         }
-        return Message.tool(call.id, call.name, result.output, isError = result.isError)
+        val attachmentPath = result.data["attachment_path"] as? String
+        val attachments = attachmentPath?.let { listOf(Attachment(it)) } ?: emptyList()
+        return Message.tool(call.id, call.name, result.output, isError = result.isError, attachments = attachments)
     }
 
     private fun buildContext(depth: Int, model: String): ToolContext = ToolContext(

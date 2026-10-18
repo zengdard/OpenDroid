@@ -14,6 +14,12 @@ data class ToolCallPart(
     val arguments: String = "{}"
 )
 
+/** Pièce jointe image (chemin local ; encodée en base64 à l'envoi). */
+data class Attachment(
+    val path: String,
+    val mimeType: String = "image/png"
+)
+
 /**
  * Message canonique, indépendant du provider.
  * Les providers convertissent ce format vers leur wire-format respectif.
@@ -29,6 +35,8 @@ data class Message(
     val toolName: String? = null,
     /** Marque un résultat d'outil en erreur (affichage UI). */
     val isError: Boolean = false,
+    /** Images jointes (captures d'écran) pour les modèles multimodaux. */
+    val attachments: List<Attachment> = emptyList(),
     val timestamp: Long = System.currentTimeMillis()
 ) {
     companion object {
@@ -39,7 +47,19 @@ data class Message(
             toolCalls: List<ToolCallPart> = emptyList()
         ) = Message(role = Role.ASSISTANT, text = text, thinking = thinking, toolCalls = toolCalls)
 
-        fun tool(callId: String, name: String, result: String, isError: Boolean = false) =
-            Message(role = Role.TOOL, text = result, toolCallId = callId, toolName = name, isError = isError)
+        fun tool(
+            callId: String,
+            name: String,
+            result: String,
+            isError: Boolean = false,
+            attachments: List<Attachment> = emptyList()
+        ) = Message(
+            role = Role.TOOL,
+            text = result,
+            toolCallId = callId,
+            toolName = name,
+            isError = isError,
+            attachments = attachments
+        )
     }
 }

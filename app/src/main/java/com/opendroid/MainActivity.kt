@@ -12,6 +12,7 @@ import androidx.navigation.compose.rememberNavController
 import com.opendroid.ui.OpenDroidViewModel
 import com.opendroid.ui.chat.ChatScreen
 import com.opendroid.ui.settings.AgentsScreen
+import com.opendroid.ui.settings.McpScreen
 import com.opendroid.ui.settings.PermissionsScreen
 import com.opendroid.ui.settings.ProviderEditScreen
 import com.opendroid.ui.settings.ProvidersScreen
@@ -60,6 +61,9 @@ fun AppNavigation() {
         }
         composable("tools") {
             ToolsScreen(onBack = { nav.popBackStack() })
+        }
+        composable("mcp") {
+            McpScreen(vm, onBack = { nav.popBackStack() })
         }
     }
 }

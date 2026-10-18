@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -65,6 +66,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -377,6 +380,19 @@ private fun ToolResultChip(message: Message) {
     Surface(shape = MaterialTheme.shapes.small, color = bg, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(spaceSM)) {
             Text(message.toolName ?: "outil", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = fg, fontWeight = FontWeight.SemiBold)
+            message.attachments.firstOrNull()?.let { attachment ->
+                val bitmap = remember(attachment.path) { android.graphics.BitmapFactory.decodeFile(attachment.path) }
+                if (bitmap != null) {
+                    Spacer(Modifier.height(spaceXS))
+                    androidx.compose.foundation.Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "capture d'écran",
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                    Spacer(Modifier.height(spaceXS))
+                }
+            }
             Text(message.text.take(1500), style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = fg.copy(alpha = 0.85f))
         }
     }

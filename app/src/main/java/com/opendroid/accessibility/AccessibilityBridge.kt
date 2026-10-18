@@ -14,7 +14,42 @@ import android.util.Log
  * Pont vers le service d'accessibilité : gestes, lecture de l'arbre de vues,
  * actions système (retour, accueil, récents), recherche par texte.
  */
+/**
+ * Un nœud de l'écran capturé, avec un index stable utilisé par l'outil `tap_id`.
+ * L'index reste valable tant que l'écran n'a pas changé ; `tap_id` vérifie
+ * que le nœud est toujours présent avant d'agir (garde-fou pré-action).
+ */
+data class UiNodeInfo(
+    val index: Int,
+    val depth: Int,
+    val className: String,
+    val text: String,
+    val desc: String,
+    val left: Int,
+    val top: Int,
+    val right: Int,
+    val bottom: Int,
+    val clickable: Boolean,
+    val editable: Boolean,
+    val packageName: String
+) {
+    val cx: Int get() = (left + right) / 2
+    val cy: Int get() = (top + bottom) / 2
+}
+
+/** Relevé de l'écran au moment de `screen_dump`. */
+data class UiSnapshot(
+    val packageName: String,
+    val createdAt: Long,
+    val nodes: List<UiNodeInfo>
+)
+
 class AccessibilityBridge {
+
+    /** Dernier relevé produit par `screen_dump`, utilisé pour résoudre les `#index`. */
+    @Volatile
+    var lastSnapshot: UiSnapshot? = null
+        private set
 
     @Volatile
     var service: OpenDroidAccessibilityService? = null
@@ -79,39 +114,127 @@ class AccessibilityBridge {
     }
 
     // ---- Arbre de vues ----
-    /** Sérialise l'arbre visible en texte, avec coordonnées, pour le modèle. */
-    fun dumpScreen(maxNodes: Int = 120): String {
-        val root = rootNode() ?: return "(aucune fenêtre active)"
-        val sb = StringBuilder()
-        val count = intArrayOf(0)
-        walk(root, sb, 0, count, maxNodes)
-        return if (sb.isEmpty()) "(écran vide)" else sb.toString()
+
+    /** Capture l'arbre visible et lui attribue des indices stables (#0, #1, …). */
+    fun captureSnapshot(maxNodes: Int = 140): UiSnapshot? {
+        val root = rootNode() ?: return null
+        val pkg = root.packageName?.toString() ?: ""
+        val nodes = mutableListOf<UiNodeInfo>()
+        collectNodes(root, 0, nodes, maxNodes, pkg)
+        val snapshot = UiSnapshot(pkg, System.currentTimeMillis(), nodes)
+        lastSnapshot = snapshot
+        return snapshot
     }
 
-    private fun walk(node: AccessibilityNodeInfo, sb: StringBuilder, depth: Int, count: IntArray, max: Int) {
-        if (count[0] >= max) return
-        count[0]++
-        val label = node.text?.toString()?.take(80)
-            ?: node.contentDescription?.toString()?.take(80)
-            ?: ""
+    private fun collectNodes(
+        node: AccessibilityNodeInfo,
+        depth: Int,
+        out: MutableList<UiNodeInfo>,
+        max: Int,
+        pkg: String
+    ) {
+        if (out.size >= max) return
+        val text = node.text?.toString()?.take(120).orEmpty()
+        val desc = node.contentDescription?.toString()?.take(120).orEmpty()
         val cls = node.className?.toString()?.substringAfterLast('.') ?: ""
-        if (label.isNotBlank() || node.isClickable) {
+        if (text.isNotBlank() || desc.isNotBlank() || node.isClickable || node.isEditable) {
             val rect = Rect().also { node.getBoundsInScreen(it) }
-            val cx = (rect.left + rect.right) / 2
-            val cy = (rect.top + rect.bottom) / 2
-            sb.append("  ".repeat(depth))
-            sb.append("- ").append(cls.ifBlank { "node" })
-            if (label.isNotBlank()) sb.append(" \"").append(label).append("\"")
-            sb.append(" @(").append(cx).append(",").append(cy).append(")")
-            if (node.isClickable) sb.append(" [clickable]")
-            if (node.isEditable) sb.append(" [editable]")
-            sb.append('\n')
+            out.add(
+                UiNodeInfo(
+                    index = out.size,
+                    depth = depth,
+                    className = cls,
+                    text = text,
+                    desc = desc,
+                    left = rect.left, top = rect.top, right = rect.right, bottom = rect.bottom,
+                    clickable = node.isClickable,
+                    editable = node.isEditable,
+                    packageName = pkg
+                )
+            )
         }
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
-            walk(child, sb, depth + 1, count, max)
+            collectNodes(child, depth + 1, out, max, pkg)
             child.recycle()
         }
+    }
+
+    /** Sérialise l'arbre visible en texte, avec index et coordonnées, pour le modèle. */
+    fun dumpScreen(maxNodes: Int = 140): String {
+        val snapshot = captureSnapshot(maxNodes) ?: return "(aucune fenêtre active)"
+        if (snapshot.nodes.isEmpty()) return "(écran vide)"
+        val sb = StringBuilder()
+        snapshot.nodes.forEach { n ->
+            sb.append("  ".repeat(n.depth))
+            sb.append('#').append(n.index).append(' ').append(n.className.ifBlank { "node" })
+            val label = n.text.ifBlank { n.desc }
+            if (label.isNotBlank()) sb.append(" \"").append(label).append('"')
+            sb.append(" @(").append(n.cx).append(',').append(n.cy).append(')')
+            if (n.clickable) sb.append(" [clickable]")
+            if (n.editable) sb.append(" [editable]")
+            sb.append('\n')
+        }
+        return sb.toString()
+    }
+
+    /**
+     * Tape sur l'élément `#index` du dernier relevé, APRÈS vérification :
+     *  - le paquet actif n'a pas changé ;
+     *  - un nœud vivant existe toujours au même endroit avec le même texte/classe.
+     * Renvoie "ok" ou un message d'erreur explicite pour le modèle.
+     */
+    fun tapIndex(index: Int): String {
+        val snapshot = lastSnapshot
+            ?: return "Aucun relevé d'écran. Appelez d'abord `screen_dump`."
+        val target = snapshot.nodes.firstOrNull { it.index == index }
+            ?: return "Index #$index inconnu. Refaites `screen_dump`."
+        if (System.currentTimeMillis() - snapshot.createdAt > 60_000) {
+            return "Relevé trop ancien (>60 s). Refaites `screen_dump`."
+        }
+        val currentPkg = packageName()
+        if (currentPkg != null && snapshot.packageName.isNotBlank() && currentPkg != snapshot.packageName) {
+            return "L'écran a changé (paquet actif: $currentPkg ≠ ${snapshot.packageName}). Refaites `screen_dump`."
+        }
+        val center = findLiveCenter(target)
+            ?: return "Élément #$index introuvable à l'écran (interface modifiée). Refaites `screen_dump`."
+        return if (tap(center.first.toFloat(), center.second.toFloat())) "ok"
+        else "Tap échoué sur #$index."
+    }
+
+    /** Vérifie qu'un élément correspondant est toujours à l'écran. */
+    fun isIndexPresent(index: Int): Boolean {
+        val target = lastSnapshot?.nodes?.firstOrNull { it.index == index } ?: return false
+        return findLiveCenter(target) != null
+    }
+
+    private fun findLiveCenter(target: UiNodeInfo): Pair<Int, Int>? {
+        val root = rootNode() ?: return null
+        return findLiveNode(root, target)
+    }
+
+    private fun findLiveNode(node: AccessibilityNodeInfo, target: UiNodeInfo): Pair<Int, Int>? {
+        val rect = Rect().also { node.getBoundsInScreen(it) }
+        val cx = (rect.left + rect.right) / 2
+        val cy = (rect.top + rect.bottom) / 2
+        val cls = node.className?.toString()?.substringAfterLast('.') ?: ""
+        val text = node.text?.toString()?.take(120).orEmpty()
+        val desc = node.contentDescription?.toString()?.take(120).orEmpty()
+        val sameBounds = kotlin.math.abs(cx - target.cx) <= 12 && kotlin.math.abs(cy - target.cy) <= 12
+        val sameLabel = when {
+            target.text.isNotBlank() -> text == target.text
+            target.desc.isNotBlank() -> desc == target.desc
+            else -> true
+        }
+        val sameClass = target.className.isBlank() || cls == target.className
+        if (sameBounds && sameLabel && sameClass) return cx to cy
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            val found = findLiveNode(child, target)
+            child.recycle()
+            if (found != null) return found
+        }
+        return null
     }
 
     /** Trouve un nœud cliquable par texte (ou contenu). Renvoie le centre, ou null. */

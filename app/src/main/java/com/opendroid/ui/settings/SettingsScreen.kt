@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Lock
@@ -129,6 +130,9 @@ fun SettingsScreen(vm: OpenDroidViewModel, onBack: () -> Unit, onNavigate: (Stri
             }
             item {
                 NavigateCard(Icons.Default.Build, "Outils", "Tous les outils disponibles", onClick = { onNavigate("tools") })
+            }
+            item {
+                NavigateCard(Icons.Default.Cloud, "Serveurs MCP", "Outils externes via Model Context Protocol", onClick = { onNavigate("mcp") })
             }
             item {
                 SectionCard(Icons.Default.TouchApp, "Accessibilité", "Gestes, saisie, navigation, capture") {

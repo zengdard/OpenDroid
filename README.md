@@ -72,12 +72,33 @@ Les permissions sont évaluées comme dans opencode :
 **Web** — `webfetch`, `websearch`
 **Agents** — `task`, `question`, `todowrite`, `todoread`
 **Applications** — `list_apps`, `app_info`, `open_app`, `open_url`, `open_settings`
-**Interface** — `screen_dump`, `tap`, `long_press`, `swipe`, `type_text`, `press_key`, `find_tap`
+**Interface** — `screen_dump`, `tap`, `tap_id`, `long_press`, `swipe`, `type_text`, `press_key`, `find_tap`, `verify`
 **Appareil** — `device_info`, `get_battery_info`, `get_network_status`, `get_location`,
 `clipboard_get`, `clipboard_set`, `notification_send`, `notifications_list`,
 `media_control`, `take_screenshot`
 **Communication** — `send_sms`, `make_call`, `share_text`, `contacts_search`,
 `set_alarm`, `create_event`, `list_events`
+
+---
+
+## 🚀 Capacités avancées (inspirées d'ARTEMIS)
+
+- **Ciblage par index + garde-fou pré-action** — `screen_dump` renvoie des éléments
+  indexés (`#12 TextView "Battery" @(540,1200) [clickable]`) ; `tap_id` vérifie que
+  l'élément est toujours présent (même paquet, mêmes bounds, même libellé) avant
+  d'agir, au lieu de taper sur des coordonnées périmées.
+- **Planner / Operator / Checker** — `todowrite` accepte un champ `verify` par étape ;
+  l'outil `verify` contrôle un checkpoint sur l'écran vivant (texte présent/absent,
+  paquet actif) ; le sous-agent `checker` audite le résultat final (lecture seule).
+- **Compression d'historique** — au-delà d'un budget de contexte, les anciens tours
+  sont résumés en un mémo compact et seuls les 8 derniers messages sont conservés :
+  sessions longues possibles même avec un petit contexte on-device.
+- **Vision** — `take_screenshot` joint la capture au modèle (OpenAI/Anthropic/Gemini)
+  pour analyser les interfaces Canvas/Compose/Flutter sans arbre d'accessibilité.
+- **MCP (Model Context Protocol)** — connecte des serveurs d'outils externes en
+  HTTP JSON-RPC (`initialize` → `tools/list` → `tools/call`), avec support SSE et
+  `Mcp-Session-Id`. Les outils découverts sont exposés sous la clé de permission
+  `mcp` et nommés `mcp_<serveur>_<outil>`. Configuration : **Paramètres → Serveurs MCP**.
 
 ---
 

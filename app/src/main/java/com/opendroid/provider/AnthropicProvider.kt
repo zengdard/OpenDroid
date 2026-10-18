@@ -98,7 +98,25 @@ class AnthropicProvider(private val config: ProviderConfig) : LlmProvider {
                 Role.SYSTEM -> {}
                 Role.USER -> {
                     flushToolResults()
-                    messages.put(JSONObject().put("role", "user").put("content", m.text))
+                    if (m.attachments.isEmpty()) {
+                        messages.put(JSONObject().put("role", "user").put("content", m.text))
+                    } else {
+                        val content = JSONArray()
+                        if (m.text.isNotBlank()) content.put(JSONObject().put("type", "text").put("text", m.text))
+                        m.attachments.forEach { attachment ->
+                            Images.readBase64(attachment.path)?.let { b64 ->
+                                content.put(
+                                    JSONObject().put("type", "image").put(
+                                        "source",
+                                        JSONObject().put("type", "base64")
+                                            .put("media_type", attachment.mimeType)
+                                            .put("data", b64)
+                                    )
+                                )
+                            }
+                        }
+                        messages.put(JSONObject().put("role", "user").put("content", content))
+                    }
                 }
                 Role.ASSISTANT -> {
                     flushToolResults()

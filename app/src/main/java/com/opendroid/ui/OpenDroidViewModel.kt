@@ -18,6 +18,7 @@ import com.opendroid.data.model.Todo
 import com.opendroid.data.registry.BuiltInAgents
 import com.opendroid.data.session.SessionStore
 import com.opendroid.data.settings.SettingsStore
+import com.opendroid.mcp.McpManager
 import com.opendroid.provider.ProviderFactory
 import com.opendroid.tool.UserQuestion
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +28,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -77,6 +79,10 @@ class OpenDroidViewModel @Inject constructor(
 
     val sessions = sessionStore.sessions
 
+    private val mcpManager = McpManager()
+    private val _mcpStatus = MutableStateFlow<Map<String, String>>(emptyMap())
+    val mcpStatus: StateFlow<Map<String, String>> = _mcpStatus.asStateFlow()
+
     @Volatile private var permissionDeferred: CompletableDeferred<Boolean>? = null
     @Volatile private var questionDeferred: CompletableDeferred<String>? = null
     private var runJob: Job? = null
@@ -109,6 +115,16 @@ class OpenDroidViewModel @Inject constructor(
         viewModelScope.launch { settingsStore.onDeviceModelPath.collect { onDevicePath = it } }
         viewModelScope.launch { settingsStore.activeModel.collect { activeModel = it } }
         viewModelScope.launch { settingsStore.autoApprove.collect { v -> _uiState.value = _uiState.value.copy(autoApprove = v) } }
+        // Serveurs MCP : (re)connecte et publie leurs outils
+        viewModelScope.launch {
+            settingsStore.mcpServers.distinctUntilChanged().collect { servers ->
+                _mcpStatus.value = try {
+                    mcpManager.refresh(servers)
+                } catch (e: Exception) {
+                    mapOf("MCP" to "❌ ${e.message}")
+                }
+            }
+        }
         // Session initiale
         viewModelScope.launch {
             sessionStore.load()
@@ -279,6 +295,16 @@ class OpenDroidViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(todos = event.todos)
             is AgentEvent.Error ->
                 _uiState.value = _uiState.value.copy(error = event.message)
+            is AgentEvent.ContextCompressed -> {
+                _uiState.value = _uiState.value.copy(
+                    activities = _uiState.value.activities + ToolActivity(
+                        callId = "compress_${System.currentTimeMillis()}",
+                        name = "contexte",
+                        preview = "${event.before} → ${event.after} messages (résumé)",
+                        done = true
+                    )
+                )
+            }
             AgentEvent.Completed -> {}
         }
     }
@@ -353,6 +379,18 @@ class OpenDroidViewModel @Inject constructor(
         viewModelScope.launch {
             settingsStore.setAutoApprove(enabled)
             _uiState.value = _uiState.value.copy(autoApprove = enabled)
+        }
+    }
+
+    /** Reconnecte manuellement les serveurs MCP (bouton « Tester »). */
+    fun refreshMcp() {
+        viewModelScope.launch {
+            val servers = settingsStore.mcpServers.first()
+            _mcpStatus.value = try {
+                mcpManager.refresh(servers)
+            } catch (e: Exception) {
+                mapOf("MCP" to "❌ ${e.message}")
+            }
         }
     }
 

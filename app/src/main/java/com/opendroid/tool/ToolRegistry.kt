@@ -35,22 +35,24 @@ import com.opendroid.tool.impl.SendSmsTool
 import com.opendroid.tool.impl.SetAlarmTool
 import com.opendroid.tool.impl.ShareTextTool
 import com.opendroid.tool.impl.SwipeTool
+import com.opendroid.tool.impl.TapIdTool
 import com.opendroid.tool.impl.TapTool
 import com.opendroid.tool.impl.TaskTool
 import com.opendroid.tool.impl.TodoReadTool
 import com.opendroid.tool.impl.TodoWriteTool
 import com.opendroid.tool.impl.TypeTextTool
+import com.opendroid.tool.impl.VerifyTool
 import com.opendroid.tool.impl.WebFetchTool
 import com.opendroid.tool.impl.WebSearchTool
 import com.opendroid.tool.impl.WriteTool
 
 /**
  * Registre de tous les outils disponibles.
- * Les outils sont regroupés par catégorie (file, web, agent, app, ui, device, comm, system).
+ * Composé des outils intégrés + des outils dynamiques (ex. serveurs MCP).
  */
 object ToolRegistry {
 
-    val tools: List<Tool> = listOf(
+    private val builtin: List<Tool> = listOf(
         // Fichiers (façon opencode)
         ReadTool(), WriteTool(), EditTool(), GlobTool(), GrepTool(), ListTool(),
         // Shell
@@ -62,7 +64,8 @@ object ToolRegistry {
         // Applications
         ListAppsTool(), AppInfoTool(), OpenAppTool(), OpenUrlTool(), OpenSettingsTool(),
         // Interface
-        ScreenDumpTool(), TapTool(), LongPressTool(), SwipeTool(), TypeTextTool(), PressKeyTool(), FindTapTool(),
+        ScreenDumpTool(), TapTool(), TapIdTool(), LongPressTool(), SwipeTool(),
+        TypeTextTool(), PressKeyTool(), FindTapTool(), VerifyTool(),
         // Appareil
         DeviceInfoTool(), BatteryTool(), NetworkStatusTool(), LocationTool(),
         ClipboardGetTool(), ClipboardSetTool(), NotificationSendTool(), NotificationListTool(),
@@ -72,16 +75,34 @@ object ToolRegistry {
         SetAlarmTool(), CreateEventTool(), ListEventsTool()
     )
 
-    val byId: Map<String, Tool> = tools.associateBy { it.spec.id }
+    private val dynamic = LinkedHashMap<String, Tool>()
+
+    /** Enregistre (ou remplace) les outils dynamiques, ex. ceux exposés par MCP. */
+    @Synchronized
+    fun setDynamicTools(tools: List<Tool>) {
+        dynamic.clear()
+        tools.forEach { dynamic[it.spec.id] = it }
+    }
+
+    @Synchronized
+    fun clearDynamicTools() {
+        dynamic.clear()
+    }
+
+    val tools: List<Tool>
+        get() = synchronized(this) { builtin + dynamic.values }
+
+    val byId: Map<String, Tool>
+        get() = synchronized(this) { tools.associateBy { it.spec.id } }
 
     fun spec(id: String): ToolSpec? = byId[id]?.spec
 
     fun get(id: String): Tool? = byId[id]
 
-    val allSpecs: List<ToolSpec> = tools.map { it.spec }
+    val allSpecs: List<ToolSpec> get() = tools.map { it.spec }
 
     /** Clés de permission affichées dans l'écran Permissions. */
-    val permissionKeys: List<String> = tools.map { it.permissionKey }.distinct().sorted()
+    val permissionKeys: List<String> get() = tools.map { it.permissionKey }.distinct().sorted()
 
-    val categories: List<String> = tools.map { it.spec.category }.distinct().sorted()
+    val categories: List<String> get() = tools.map { it.spec.category }.distinct().sorted()
 }

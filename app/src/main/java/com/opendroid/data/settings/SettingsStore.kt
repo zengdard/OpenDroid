@@ -12,6 +12,7 @@ import com.google.gson.reflect.TypeToken
 import com.opendroid.data.model.PermissionConfig
 import com.opendroid.data.model.PermissionLevel
 import com.opendroid.data.model.PermissionRule
+import com.opendroid.data.model.McpServerConfig
 import com.opendroid.data.model.ProviderConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -35,10 +36,12 @@ class SettingsStore(private val context: Context) {
         val ON_DEVICE_PATH = stringPreferencesKey("on_device_model_path")
         val ON_DEVICE_DOWNLOADED = booleanPreferencesKey("on_device_downloaded")
         val AUTO_APPROVE = booleanPreferencesKey("auto_approve")
+        val MCP_SERVERS = stringPreferencesKey("mcp_servers_json")
     }
 
     private val listType = object : TypeToken<List<ProviderConfig>>() {}.type
     private val permType = object : TypeToken<Map<String, List<PermissionRule>>>() {}.type
+    private val mcpType = object : TypeToken<List<McpServerConfig>>() {}.type
 
     // ---- Providers ----
     val providers: Flow<List<ProviderConfig>> = context.dataStore.data.map { decodeProviders(it[Keys.PROVIDERS]) }
@@ -53,6 +56,31 @@ class SettingsStore(private val context: Context) {
     // ---- On-device ----
     val onDeviceModelPath: Flow<String?> = context.dataStore.data.map { it[Keys.ON_DEVICE_PATH]?.takeIf { p -> p.isNotBlank() } }
     val onDeviceDownloaded: Flow<Boolean> = context.dataStore.data.map { it[Keys.ON_DEVICE_DOWNLOADED] ?: false }
+
+    // ---- MCP ----
+    val mcpServers: Flow<List<McpServerConfig>> = context.dataStore.data.map { decodeMcp(it[Keys.MCP_SERVERS]) }
+
+    suspend fun upsertMcpServer(server: McpServerConfig) {
+        context.dataStore.edit { prefs ->
+            val current = decodeMcp(prefs[Keys.MCP_SERVERS]).toMutableList()
+            val idx = current.indexOfFirst { it.id == server.id }
+            if (idx >= 0) current[idx] = server else current.add(server)
+            prefs[Keys.MCP_SERVERS] = gson.toJson(current)
+        }
+    }
+
+    suspend fun removeMcpServer(id: String) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.MCP_SERVERS] = gson.toJson(decodeMcp(prefs[Keys.MCP_SERVERS]).filterNot { it.id == id })
+        }
+    }
+
+    suspend fun setMcpEnabled(id: String, enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            val current = decodeMcp(prefs[Keys.MCP_SERVERS]).map { if (it.id == id) it.copy(enabled = enabled) else it }
+            prefs[Keys.MCP_SERVERS] = gson.toJson(current)
+        }
+    }
 
     suspend fun saveProviders(providers: List<ProviderConfig>) {
         context.dataStore.edit { it[Keys.PROVIDERS] = gson.toJson(providers) }
@@ -141,5 +169,12 @@ class SettingsStore(private val context: Context) {
             emptyMap()
         }
         return PermissionConfig(entries)
+    }
+
+    private fun decodeMcp(raw: String?): List<McpServerConfig> = try {
+        if (raw.isNullOrBlank()) emptyList()
+        else gson.fromJson<List<McpServerConfig>>(raw, mcpType) ?: emptyList()
+    } catch (_: Exception) {
+        emptyList()
     }
 }

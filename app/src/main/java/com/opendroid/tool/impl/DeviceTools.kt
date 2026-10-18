@@ -191,7 +191,16 @@ class MediaControlTool : Tool {
 }
 
 class ScreenshotTool : Tool {
-    override val spec = ToolSpec(id = "take_screenshot", description = "Prendre une capture d'écran et l'enregistrer.", category = "device", dangerousByDefault = true)
+    override val spec = ToolSpec(
+        id = "take_screenshot",
+        description = "Prendre une capture d'écran. L'image est jointe au modèle par défaut (vision) " +
+            "pour analyser les interfaces sans arbre d'accessibilité.",
+        category = "device",
+        parameters = listOf(
+            ToolParameter("attach", "boolean", "Joindre l'image au modèle (défaut true)", required = false)
+        ),
+        dangerousByDefault = true
+    )
 
     override suspend fun execute(context: ToolContext, args: JSONObject): ToolResult {
         if (!context.accessibility.isReady) return ToolResult.error("Service d'accessibilité requis pour la capture")
@@ -203,7 +212,14 @@ class ScreenshotTool : Tool {
             val file = java.io.File(dir, "screenshot_${System.currentTimeMillis()}.png")
             java.io.FileOutputStream(file).use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
             bitmap.recycle()
-            ToolResult.ok("Capture enregistrée : ${file.absolutePath}")
+            if (Args.bool(args, "attach", true)) {
+                ToolResult.ok(
+                    "Capture jointe au modèle : ${file.absolutePath}",
+                    mapOf("attachment_path" to file.absolutePath)
+                )
+            } else {
+                ToolResult.ok("Capture enregistrée : ${file.absolutePath}")
+            }
         } catch (e: Exception) {
             ToolResult.error("Enregistrement impossible : ${e.message}")
         }

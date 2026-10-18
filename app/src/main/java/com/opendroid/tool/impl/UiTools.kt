@@ -17,8 +17,8 @@ private fun noAccessibility() = ToolResult.error(
 class ScreenDumpTool : Tool {
     override val spec = ToolSpec(
         id = "screen_dump",
-        description = "Lire l'arbre de l'interface actuelle (textes, éléments cliquables, coordonnées). " +
-            "À utiliser avant de taper pour localiser les éléments.",
+        description = "Lire l'interface actuelle sous forme d'éléments indexés '#N' (texte, cliquable, " +
+            "éditable, coordonnées). À appeler avant toute action ; utilise ensuite `tap_id` avec l'index.",
         category = "ui"
     )
 
@@ -169,5 +169,78 @@ class FindTapTool : Tool {
         val text = Args.str(args, "text") ?: return ToolResult.error("Paramètre 'text' requis")
         return if (context.accessibility.findAndTap(text)) ToolResult.ok("Élément « $text » appuyé")
         else ToolResult.error("Élément « $text » introuvable")
+    }
+}
+
+/**
+ * Appui sur un élément par index (#N) issu de `screen_dump`, avec vérification
+ * pré-action : le nœud doit toujours exister au même endroit (même paquet).
+ */
+class TapIdTool : Tool {
+    override val spec = ToolSpec(
+        id = "tap_id",
+        description = "Appuyer sur l'élément '#N' renvoyé par `screen_dump`. Vérifie que l'élément " +
+            "est toujours présent avant d'agir (plus fiable que des coordonnées brutes).",
+        category = "ui",
+        parameters = listOf(
+            ToolParameter("index", "integer", "Index de l'élément, ex. 12 pour #12")
+        ),
+        dangerousByDefault = true
+    )
+    override val permissionKey = "tap"
+
+    override suspend fun execute(context: ToolContext, args: JSONObject): ToolResult {
+        if (!context.accessibility.isReady) return noAccessibility()
+        val index = Args.int(args, "index") ?: return ToolResult.error("Paramètre 'index' requis")
+        val result = context.accessibility.tapIndex(index)
+        return if (result == "ok") ToolResult.ok("Tap sur #$index effectué")
+        else ToolResult.error(result)
+    }
+}
+
+/**
+ * Vérification de checkpoint (Planner/Operator/Checker) : contrôle une condition
+ * sur l'écran vivant — texte présent/absent, paquet actif.
+ */
+class VerifyTool : Tool {
+    override val spec = ToolSpec(
+        id = "verify",
+        description = "Vérifier une condition sur l'écran actuel (checkpoint). Fournir au moins un " +
+            "critère : `text` (doit être présent), `absent` (doit être absent), `package` (paquet actif).",
+        category = "ui",
+        parameters = listOf(
+            ToolParameter("text", "string", "Texte qui doit être présent", required = false),
+            ToolParameter("absent", "string", "Texte qui doit être absent", required = false),
+            ToolParameter("package", "string", "Package Android actif attendu", required = false)
+        )
+    )
+    override val permissionKey = "verify"
+
+    override suspend fun execute(context: ToolContext, args: JSONObject): ToolResult {
+        if (!context.accessibility.isReady) return noAccessibility()
+        val text = Args.str(args, "text")
+        val absent = Args.str(args, "absent")
+        val pkg = Args.str(args, "package")
+        if (text == null && absent == null && pkg == null) {
+            return ToolResult.error("Fournir au moins un critère : text, absent ou package.")
+        }
+        val snapshot = context.accessibility.captureSnapshot()
+            ?: return ToolResult.error("Aucune fenêtre active.")
+        val haystack = snapshot.nodes.joinToString("\n") { "${it.text} ${it.desc}" }
+        val problems = mutableListOf<String>()
+        if (pkg != null && !snapshot.packageName.equals(pkg, ignoreCase = true)) {
+            problems += "paquet actif = '${snapshot.packageName}' (attendu '$pkg')"
+        }
+        if (text != null && !haystack.contains(text, ignoreCase = true)) {
+            problems += "texte '$text' absent de l'écran"
+        }
+        if (absent != null && haystack.contains(absent, ignoreCase = true)) {
+            problems += "texte '$absent' encore présent"
+        }
+        return if (problems.isEmpty()) {
+            ToolResult.ok("✅ PASS — ${text ?: absent ?: pkg} vérifié (paquet ${snapshot.packageName})")
+        } else {
+            ToolResult.ok("❌ FAIL\n- " + problems.joinToString("\n- "))
+        }
     }
 }

@@ -75,7 +75,12 @@ class OnDeviceProvider(
         sb.append("# CONVERSATION\n")
         request.messages.forEach { m ->
             when (m.role) {
-                Role.USER -> sb.append("<user>\n${m.text}\n</user>\n")
+                Role.USER -> {
+                    sb.append("<user>\n${m.text}\n</user>\n")
+                    if (m.attachments.isNotEmpty()) {
+                        sb.append("<note>${m.attachments.size} capture(s) jointe(s), non analysable(s) en local</note>\n")
+                    }
+                }
                 Role.ASSISTANT -> {
                     sb.append("<assistant>\n")
                     m.thinking?.let { sb.append("<thinking>$it</thinking>\n") }

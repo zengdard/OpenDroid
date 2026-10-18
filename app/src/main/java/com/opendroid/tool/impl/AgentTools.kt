@@ -17,13 +17,13 @@ class TaskTool : Tool {
     override val spec = ToolSpec(
         id = "task",
         description = "Lancer un sous-agent pour une tâche spécialisée. Types disponibles : " +
-            "general (polyvalent), explore (exploration lecture seule), scout (recherche web). " +
-            "Renvoie le résultat du sous-agent.",
+            "general (polyvalent), explore (exploration lecture seule), scout (recherche web), " +
+            "checker (audit/vérification d'un résultat). Renvoie le résultat du sous-agent.",
         category = "agent",
         parameters = listOf(
             ToolParameter("description", "string", "Description courte de la tâche (3-5 mots)"),
             ToolParameter("prompt", "string", "Instruction détaillée à confier au sous-agent"),
-            ToolParameter("subagent_type", "string", "Type de sous-agent", enumValues = listOf("general", "explore", "scout"))
+            ToolParameter("subagent_type", "string", "Type de sous-agent", enumValues = listOf("general", "explore", "scout", "checker"))
         )
     )
     override val permissionKey = "task"
@@ -73,7 +73,7 @@ class TodoWriteTool : Tool {
         description = "Créer ou mettre à jour la liste de tâches de la session. Fournit tous les éléments (remplace la liste).",
         category = "agent",
         parameters = listOf(
-            ToolParameter("todos", "string", "Tableau JSON: [{\"content\":\"...\",\"status\":\"pending|in_progress|done\"}]")
+            ToolParameter("todos", "string", "Tableau JSON: [{\"content\":\"...\",\"status\":\"pending|in_progress|done\",\"verify\":\"checkpoint optionnel\"}]")
         )
     )
 
@@ -90,7 +90,7 @@ class TodoWriteTool : Tool {
                         "done", "completed" -> TodoStatus.DONE
                         else -> TodoStatus.PENDING
                     }
-                    todos.add(Todo(o.optString("content"), status))
+                    todos.add(Todo(o.optString("content"), status, o.optString("verify", "").ifBlank { o.optString("check", "") }.ifBlank { null }))
                 }
             }
         } catch (_: Exception) {}
@@ -109,6 +109,9 @@ class TodoReadTool : Tool {
     override suspend fun execute(context: ToolContext, args: JSONObject): ToolResult {
         val todos = context.readTodos()
         if (todos.isEmpty()) return ToolResult.ok("(aucune tâche)")
-        return ToolResult.ok(todos.joinToString("\n") { "- [${it.status.name.lowercase()}] ${it.content}" })
+        return ToolResult.ok(todos.joinToString("\n") { todo ->
+            val check = todo.verify?.let { " (vérifier: $it)" } ?: ""
+            "- [${todo.status.name.lowercase()}] ${todo.content}$check"
+        })
     }
 }

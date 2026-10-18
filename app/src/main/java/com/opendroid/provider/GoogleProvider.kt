@@ -62,7 +62,19 @@ class GoogleProvider(private val config: ProviderConfig) : LlmProvider {
             val parts = JSONArray()
             when (m.role) {
                 Role.SYSTEM -> return@forEach
-                Role.USER -> parts.put(JSONObject().put("text", m.text))
+                Role.USER -> {
+                    if (m.text.isNotBlank()) parts.put(JSONObject().put("text", m.text))
+                    m.attachments.forEach { attachment ->
+                        Images.readBase64(attachment.path)?.let { b64 ->
+                            parts.put(
+                                JSONObject().put(
+                                    "inline_data",
+                                    JSONObject().put("mime_type", attachment.mimeType).put("data", b64)
+                                )
+                            )
+                        }
+                    }
+                }
                 Role.ASSISTANT -> {
                     if (m.text.isNotBlank()) parts.put(JSONObject().put("text", m.text))
                     m.toolCalls.forEach { tc ->

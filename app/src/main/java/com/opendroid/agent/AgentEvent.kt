@@ -17,5 +17,7 @@ sealed interface AgentEvent {
     /** La liste de tâches a changé. */
     data class TodosUpdated(val todos: List<com.opendroid.data.model.Todo>) : AgentEvent
     data class Error(val message: String) : AgentEvent
+    /** L'historique a été résumé pour rester dans le budget de contexte. */
+    data class ContextCompressed(val before: Int, val after: Int) : AgentEvent
     data object Completed : AgentEvent
 }

@@ -23,7 +23,9 @@ data class Session(
 
 data class Todo(
     val content: String,
-    val status: TodoStatus = TodoStatus.PENDING
+    val status: TodoStatus = TodoStatus.PENDING,
+    /** Checkpoint de vérification (ex. texte attendu à l'écran). */
+    val verify: String? = null
 )
 
 enum class TodoStatus { PENDING, IN_PROGRESS, DONE }
