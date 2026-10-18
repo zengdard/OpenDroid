@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,11 +50,13 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -82,6 +85,10 @@ import com.opendroid.data.registry.BuiltInAgents
 import com.opendroid.ui.OpenDroidViewModel
 import com.opendroid.ui.components.PermissionDialog
 import com.opendroid.ui.components.QuestionDialog
+import com.opendroid.ui.theme.FieldShape
+import com.opendroid.ui.theme.MessageShapeAssistant
+import com.opendroid.ui.theme.MessageShapeUser
+import com.opendroid.ui.theme.PillShape
 import com.opendroid.ui.theme.spaceLG
 import com.opendroid.ui.theme.spaceMD
 import com.opendroid.ui.theme.spaceSM
@@ -91,7 +98,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(viewModel: OpenDroidViewModel, onOpenSettings: () -> Unit) {
+fun ChatScreen(viewModel: OpenDroidViewModel, onOpenSettings: () -> Unit, onOpenTerminal: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -184,10 +191,17 @@ fun ChatScreen(viewModel: OpenDroidViewModel, onOpenSettings: () -> Unit) {
                     },
                     actions = {
                         Box {
-                            AssistChip(
+                            Surface(
                                 onClick = { showAgentMenu = true },
-                                label = { Text(viewModel.currentAgent().name) }
-                            )
+                                shape = PillShape,
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Text(
+                                    viewModel.currentAgent().name,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                                )
+                            }
                             DropdownMenu(expanded = showAgentMenu, onDismissRequest = { showAgentMenu = false }) {
                                 BuiltInAgents.primary.forEach { agent ->
                                     DropdownMenuItem(
@@ -204,8 +218,12 @@ fun ChatScreen(viewModel: OpenDroidViewModel, onOpenSettings: () -> Unit) {
                             }
                         }
                         IconButton(onClick = { showModelSheet = true }) { Icon(Icons.Default.Tune, "Modèle") }
+                        IconButton(onClick = onOpenTerminal) { Icon(Icons.Default.Terminal, "Terminal") }
                         IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, "Paramètres") }
-                    }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
                 )
             }
         ) { padding ->
@@ -266,19 +284,24 @@ fun ChatScreen(viewModel: OpenDroidViewModel, onOpenSettings: () -> Unit) {
 private fun EmptyState(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(spaceXL)) {
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(72.dp)) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(76.dp)) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("OD", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
+                    Text(
+                        "OD",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
             Spacer(Modifier.height(spaceLG))
             Text("OpenDroid", style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.height(spaceXS))
+            Spacer(Modifier.height(6.dp))
             Text(
-                "Agent autonome pour Android. Ouvre des apps, agit sur l'écran, gère tes fichiers, le web et plus.",
-                style = MaterialTheme.typography.bodySmall,
+                "Pose une question, ou demande une action sur ton téléphone.",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.widthIn(max = 300.dp)
+                modifier = Modifier.widthIn(max = 280.dp)
             )
         }
     }
@@ -313,8 +336,17 @@ private fun TodoStrip(todos: List<com.opendroid.data.model.Todo>) {
 @Composable
 private fun UserBubble(message: Message) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
-        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.widthIn(max = 340.dp)) {
-            Text(message.text, modifier = Modifier.padding(horizontal = spaceLG, vertical = spaceMD), color = MaterialTheme.colorScheme.onPrimaryContainer)
+        Surface(
+            shape = MessageShapeUser,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.widthIn(max = 320.dp)
+        ) {
+            Text(
+                message.text,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                color = MaterialTheme.colorScheme.onPrimary,
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
     }
 }
@@ -322,16 +354,6 @@ private fun UserBubble(message: Message) {
 @Composable
 private fun AssistantMessage(message: Message) {
     Column(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(24.dp)) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("OD", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                }
-            }
-            Spacer(Modifier.width(spaceSM))
-            Text("OpenDroid", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Spacer(Modifier.height(spaceXS))
         if (!message.thinking.isNullOrBlank()) {
             ThinkingBlock(message.thinking)
         }
@@ -339,8 +361,16 @@ private fun AssistantMessage(message: Message) {
             ToolCallHeader(call.name, call.arguments)
         }
         if (message.text.isNotBlank()) {
-            Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.widthIn(max = 420.dp)) {
-                MarkdownText(message.text, modifier = Modifier.padding(spaceMD), fontSize = 15.sp)
+            Surface(
+                shape = MessageShapeAssistant,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.widthIn(max = 460.dp)
+            ) {
+                MarkdownText(
+                    message.text,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    fontSize = 16.sp
+                )
             }
         }
     }
@@ -365,22 +395,33 @@ private fun ThinkingBlock(thinking: String) {
 
 @Composable
 private fun ToolCallHeader(name: String, args: String) {
-    Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f), modifier = Modifier.padding(vertical = 2.dp)) {
-        Row(Modifier.padding(horizontal = spaceSM, vertical = spaceXS), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Tune, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(spaceXS))
-            Text(name, style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary)
-        }
+    Row(
+        Modifier.padding(vertical = 2.dp, horizontal = spaceXS),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+        Spacer(Modifier.width(6.dp))
+        Text(
+            name,
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 }
 
 @Composable
 private fun ToolResultChip(message: Message) {
-    val bg = if (message.isError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer
-    val fg = if (message.isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer
-    Surface(shape = MaterialTheme.shapes.small, color = bg, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(spaceSM)) {
-            Text(message.toolName ?: "outil", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = fg, fontWeight = FontWeight.SemiBold)
+    val container = if (message.isError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surface
+    val content = if (message.isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    Surface(shape = MaterialTheme.shapes.medium, color = container, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
+            Text(
+                message.toolName ?: "outil",
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = FontFamily.Monospace,
+                color = if (message.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+            )
             message.attachments.firstOrNull()?.let { attachment ->
                 val bitmap = remember(attachment.path) { android.graphics.BitmapFactory.decodeFile(attachment.path) }
                 if (bitmap != null) {
@@ -394,7 +435,12 @@ private fun ToolResultChip(message: Message) {
                     Spacer(Modifier.height(spaceXS))
                 }
             }
-            Text(message.text.take(1500), style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = fg.copy(alpha = 0.85f))
+            Text(
+                message.text.take(1500),
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = FontFamily.Monospace,
+                color = content
+            )
         }
     }
 }
@@ -413,8 +459,8 @@ private fun StreamingBubble(thinking: String, text: String, activities: List<Str
         }
         if (text.isNotBlank()) {
             Spacer(Modifier.height(spaceXS))
-            Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
-                MarkdownText(text, Modifier.padding(spaceMD).animateContentSize(), fontSize = 14.sp)
+            Surface(shape = MessageShapeAssistant, color = MaterialTheme.colorScheme.surfaceVariant) {
+                MarkdownText(text, Modifier.padding(horizontal = 14.dp, vertical = 10.dp).animateContentSize(), fontSize = 16.sp)
             }
         }
     }
@@ -422,22 +468,44 @@ private fun StreamingBubble(thinking: String, text: String, activities: List<Str
 
 @Composable
 private fun InputBar(text: String, onTextChange: (String) -> Unit, onSend: () -> Unit, onStop: () -> Unit, isRunning: Boolean) {
-    Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = spaceMD, vertical = spaceSM), verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             OutlinedTextField(
                 value = text,
                 onValueChange = onTextChange,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text(if (isRunning) "En cours…" else "Demandez quelque chose…") },
+                placeholder = {
+                    Text(if (isRunning) "En cours…" else "Message", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                },
                 enabled = !isRunning,
-                maxLines = 4,
-                shape = MaterialTheme.shapes.large
+                maxLines = 5,
+                shape = FieldShape,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    disabledContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    disabledBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                )
             )
-            Spacer(Modifier.width(spaceSM))
+            Spacer(Modifier.width(8.dp))
             if (isRunning) {
-                FilledIconButton(onClick = onStop) { Icon(Icons.Default.Stop, "Arrêter") }
+                FilledIconButton(onClick = onStop, modifier = Modifier.size(40.dp)) {
+                    Icon(Icons.Default.Stop, "Arrêter", Modifier.size(20.dp))
+                }
             } else {
-                FilledIconButton(onClick = onSend, enabled = text.isNotBlank()) { Icon(Icons.AutoMirrored.Filled.Send, "Envoyer") }
+                FilledIconButton(
+                    onClick = onSend,
+                    enabled = text.isNotBlank(),
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Send, "Envoyer", Modifier.size(19.dp))
+                }
             }
         }
     }

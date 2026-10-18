@@ -18,6 +18,7 @@ import com.opendroid.ui.settings.ProviderEditScreen
 import com.opendroid.ui.settings.ProvidersScreen
 import com.opendroid.ui.settings.SettingsScreen
 import com.opendroid.ui.settings.ToolsScreen
+import com.opendroid.ui.terminal.TerminalScreen
 import com.opendroid.ui.theme.OpenDroidTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -41,7 +42,11 @@ fun AppNavigation() {
 
     NavHost(navController = nav, startDestination = "chat") {
         composable("chat") {
-            ChatScreen(vm, onOpenSettings = { nav.navigate("settings") })
+            ChatScreen(
+                vm,
+                onOpenSettings = { nav.navigate("settings") },
+                onOpenTerminal = { nav.navigate("terminal") }
+            )
         }
         composable("settings") {
             SettingsScreen(vm, onBack = { nav.popBackStack() }, onNavigate = { nav.navigate(it) })
@@ -64,6 +69,9 @@ fun AppNavigation() {
         }
         composable("mcp") {
             McpScreen(vm, onBack = { nav.popBackStack() })
+        }
+        composable("terminal") {
+            TerminalScreen(onBack = { nav.popBackStack() })
         }
     }
 }

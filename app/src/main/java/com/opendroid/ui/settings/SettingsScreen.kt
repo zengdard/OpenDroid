@@ -1,7 +1,9 @@
 package com.opendroid.ui.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -21,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Memory
@@ -28,6 +32,7 @@ import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +53,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -132,6 +139,9 @@ fun SettingsScreen(vm: OpenDroidViewModel, onBack: () -> Unit, onNavigate: (Stri
                 NavigateCard(Icons.Default.Build, "Outils", "Tous les outils disponibles", onClick = { onNavigate("tools") })
             }
             item {
+                NavigateCard(Icons.Default.Terminal, "Terminal", "Exécuter des commandes shell (root optionnel)", onClick = { onNavigate("terminal") })
+            }
+            item {
                 NavigateCard(Icons.Default.Cloud, "Serveurs MCP", "Outils externes via Model Context Protocol", onClick = { onNavigate("mcp") })
             }
             item {
@@ -170,18 +180,21 @@ fun SettingsScreen(vm: OpenDroidViewModel, onBack: () -> Unit, onNavigate: (Stri
 
 @Composable
 fun SectionCard(icon: ImageVector, title: String, subtitle: String?, content: @Composable ColumnScope.() -> Unit) {
-    Card(Modifier.fillMaxWidth(), shape = CardShape) {
-        Column(Modifier.padding(spaceLG)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = CardShape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(Modifier.padding(horizontal = spaceLG, vertical = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(36.dp)) {
-                    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(icon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                    }
-                }
+                IconSquare(icon, accentFor(title))
                 Spacer(Modifier.width(spaceMD))
                 Column {
                     Text(title, style = MaterialTheme.typography.titleMedium)
-                    subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    subtitle?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
             Spacer(Modifier.height(spaceMD))
@@ -192,19 +205,53 @@ fun SectionCard(icon: ImageVector, title: String, subtitle: String?, content: @C
 
 @Composable
 private fun NavigateCard(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(onClick = onClick), shape = CardShape) {
-        Row(Modifier.padding(spaceLG), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(36.dp)) {
-                androidx.compose.foundation.layout.Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(icon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                }
-            }
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = CardShape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            Modifier.padding(horizontal = spaceLG, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconSquare(icon, accentFor(title))
             Spacer(Modifier.width(spaceMD))
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                null,
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
+}
+
+@Composable
+private fun IconSquare(icon: ImageVector, tint: Color) {
+    Box(
+        modifier = Modifier
+            .size(30.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(tint.copy(alpha = 0.16f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, null, modifier = Modifier.size(17.dp), tint = tint)
+    }
+}
+
+/** Couleur d'accent stable par section, façon Réglages iOS. */
+private fun accentFor(seed: String): Color {
+    val palette = listOf(
+        Color(0xFF007AFF),
+        Color(0xFF34C759),
+        Color(0xFFFF9500),
+        Color(0xFF5E5CE6),
+        Color(0xFFFF3B30)
+    )
+    return palette[(seed.hashCode() and 0x7fffffff) % palette.size]
 }

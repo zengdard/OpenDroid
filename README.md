@@ -16,20 +16,23 @@ l'utilisateur.
 
 ## ✨ Fonctionnalités
 
-- 🧠 **Agents multiples**, façon opencode : primaires (`build`, `plan`) et
-  sous-agents (`general`, `explore`, `scout`) invocables via l'outil `task`.
+- 🧠 **Agents multiples**, façon opencode : primaires (`chat`, `build`, `plan`) et
+  sous-agents (`general`, `explore`, `scout`, `checker`) invocables via l'outil `task`.
 - 🔒 **Permissions granulaires par outil** — `allow` / `ask` / `deny`, avec
   motifs glob, dernier match gagnant, surcharge par agent.
 - 💬 **Sessions & historique** persistés en JSON, titre auto-raffiné, reprise à volonté.
 - ✅ **Suivi de tâches** (`todowrite` / `todoread`) affiché dans l'UI.
 - 📡 **Streaming temps réel** du raisonnement (`thinking`) et de la réponse.
-- 🔌 **Providers interchangeables** : on-device (Gemma), OpenAI, Anthropic,
-  Google Gemini, OpenRouter, Groq, Ollama, LM Studio, ou tout endpoint
-  OpenAI-compatible personnalisé.
+- 🔌 **Providers interchangeables** : on-device (Gemma), OpenCode Zen/Go, DeepSeek,
+  OpenAI, Anthropic, Google Gemini, OpenRouter, Groq, Ollama, LM Studio, ou tout
+  endpoint OpenAI-compatible personnalisé.
 - 🖥️ **Contrôle de l'appareil** via un service d'accessibilité intégré.
+- ⌨️ **Terminal intégré** — exécute des commandes shell depuis l'app (UID de l'app,
+  ou `su` si l'appareil est rooté), avec historique et commandes rapides.
 - 🛠️ **~40 outils** répartis en catégories (fichiers, shell, web, agents, apps,
-  interface, appareil, communication).
-- 🎨 **UI Compose Material 3** moderne (clair/sombre), drawer de sessions.
+  interface, appareil, communication) + **outils MCP** dynamiques.
+- 🎨 **UI épurée façon iOS** (palette neutre, accent bleu, cartes groupées, bulles
+  iMessage) en clair et sombre.
 
 ---
 
@@ -100,6 +103,10 @@ Les permissions sont évaluées comme dans opencode :
   HTTP JSON-RPC (`initialize` → `tools/list` → `tools/call`), avec support SSE et
   `Mcp-Session-Id`. Les outils découverts sont exposés sous la clé de permission
   `mcp` et nommés `mcp_<serveur>_<outil>`. Configuration : **Paramètres → Serveurs MCP**.
+- **Terminal** — écran dédié (icône dans la barre du chat, ou Paramètres → Terminal) :
+  exécution de commandes shell, sortie colorée (stdout/stderr/exit), commandes rapides,
+  et interrupteur **root** (`su`) affiché uniquement si `su` est présent sur l'appareil.
+  Sans root, les commandes tournent avec l'UID de l'application.
 
 ---
 

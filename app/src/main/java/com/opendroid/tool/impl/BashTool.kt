@@ -7,20 +7,19 @@ import com.opendroid.tool.Tool
 import com.opendroid.tool.ToolContext
 import com.opendroid.tool.ToolResult
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.util.concurrent.TimeUnit
 
 /** Outil `bash` : exécute une commande shell (équivalent opencode). */
 class BashTool : Tool {
     override val spec = ToolSpec(
         id = "bash",
         description = "Exécuter une commande shell. Utile pour lire/écrire des fichiers, " +
-            "lister des répertoires, diagnostiquer le système, ou toute commande disponible.",
+            "lister des répertoires, diagnostiquer le système, ou toute commande disponible. " +
+            "Avec root=true, la commande passe par `su -c` (appareil rooté uniquement).",
         category = "system",
         parameters = listOf(
             ToolParameter("command", "string", "Commande shell à exécuter"),
-            ToolParameter("timeout", "integer", "Timeout en secondes (défaut 15)", required = false)
+            ToolParameter("timeout", "integer", "Timeout en secondes (défaut 15)", required = false),
+            ToolParameter("root", "boolean", "Exécuter via su (root)", required = false)
         ),
         dangerousByDefault = true
     )
@@ -30,31 +29,24 @@ class BashTool : Tool {
     override suspend fun execute(context: ToolContext, args: JSONObject): ToolResult {
         val command = Args.str(args, "command") ?: return ToolResult.error("Paramètre 'command' requis")
         val timeout = Args.int(args, "timeout", 15).toLong()
-        return try {
-            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
-            val finished = process.waitFor(timeout, TimeUnit.SECONDS)
-            if (!finished) {
-                process.destroyForcibly()
-                return ToolResult.error("Commande interrompue (timeout ${timeout}s)")
-            }
-            val stdout = BufferedReader(InputStreamReader(process.inputStream)).readText().trim()
-            val stderr = BufferedReader(InputStreamReader(process.errorStream)).readText().trim()
-            val exit = process.exitValue()
-            val out = buildString {
-                if (stdout.isNotBlank()) append(stdout.take(4000))
-                if (stderr.isNotBlank()) {
-                    if (isNotEmpty()) append('\n')
-                    append("[stderr]\n").append(stderr.take(1000))
-                }
-                if (isEmpty()) append("(aucune sortie)")
-            }
-            ToolResult(
-                output = "exit=$exit\n$out",
-                isError = exit != 0,
-                data = mapOf("exit_code" to exit)
-            )
-        } catch (e: Exception) {
-            ToolResult.error("Erreur d'exécution : ${e.message}")
+        val root = Args.bool(args, "root", false)
+
+        val result = Shell.run(command, timeout, root)
+        if (result.timedOut) {
+            return ToolResult.error("Commande interrompue (timeout ${timeout}s)")
         }
+        val output = buildString {
+            if (result.stdout.isNotBlank()) append(result.stdout.trim().take(6000))
+            if (result.stderr.isNotBlank()) {
+                if (isNotEmpty()) append('\n')
+                append("[stderr]\n").append(result.stderr.trim().take(2000))
+            }
+            if (isEmpty()) append("(aucune sortie)")
+        }
+        return ToolResult(
+            output = "exit=${result.exitCode}\n$output",
+            isError = !result.ok,
+            data = mapOf("exit_code" to result.exitCode)
+        )
     }
 }
