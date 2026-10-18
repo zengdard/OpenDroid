@@ -27,8 +27,9 @@ l'utilisateur.
   OpenAI, Anthropic, Google Gemini, OpenRouter, Groq, Ollama, LM Studio, ou tout
   endpoint OpenAI-compatible personnalisé.
 - 🖥️ **Contrôle de l'appareil** via un service d'accessibilité intégré.
-- ⌨️ **Terminal intégré** — exécute des commandes shell depuis l'app (UID de l'app,
-  ou `su` si l'appareil est rooté), avec historique et commandes rapides.
+- ⌨️ **Terminal intégré** — shell de l'app, **environnement Termux** (`RUN_COMMAND`)
+  ou root (`su`), avec historique et commandes rapides. Les agents disposent des
+  outils `bash` et `termux`.
 - 🛠️ **~40 outils** répartis en catégories (fichiers, shell, web, agents, apps,
   interface, appareil, communication) + **outils MCP** dynamiques.
 - 🎨 **UI épurée façon iOS** (palette neutre, accent bleu, cartes groupées, bulles
@@ -72,7 +73,7 @@ Les permissions sont évaluées comme dans opencode :
 ## 🛠️ Outils
 
 **Fichiers / code** — `read`, `write`, `edit`, `glob`, `grep`, `list`
-**Shell** — `bash`
+**Shell** — `bash` (shell de l'app, `root=true` pour `su`), `termux` (environnement Termux)
 **Web** — `webfetch`, `websearch`
 **Agents** — `task`, `question`, `todowrite`, `todoread`
 **Applications** — `list_apps`, `app_info`, `open_app`, `open_url`, `open_settings`
@@ -105,8 +106,36 @@ Les permissions sont évaluées comme dans opencode :
   `mcp` et nommés `mcp_<serveur>_<outil>`. Configuration : **Paramètres → Serveurs MCP**.
 - **Terminal** — écran dédié (icône dans la barre du chat, ou Paramètres → Terminal) :
   exécution de commandes shell, sortie colorée (stdout/stderr/exit), commandes rapides,
-  et interrupteur **root** (`su`) affiché uniquement si `su` est présent sur l'appareil.
-  Sans root, les commandes tournent avec l'UID de l'application.
+  et sélecteur de backend **App / Termux / Root** (root affiché uniquement si `su` existe).
+
+### Termux
+
+Les agents peuvent exécuter des commandes dans le **vrai environnement Termux**
+(bash, `pkg`/`apt`, Python, git…) via l'intent officiel `RUN_COMMAND`.
+
+Mise en place (une fois) :
+
+1. Installer **Termux** depuis [F-Droid](https://f-droid.org/packages/com.termux/)
+   (la version Play Store est obsolète).
+2. Dans Termux, autoriser les apps externes :
+   ```bash
+   mkdir -p ~/.termux
+   echo "allow-external-apps=true" >> ~/.termux/termux.properties
+   termux-reload-settings
+   ```
+3. Accorder la permission à OpenDroid : **Paramètres Android → Apps → OpenDroid →
+   Permissions → Autorisations supplémentaires → « Exécuter des commandes dans
+   l'environnement Termux »**. En ADB :
+   ```bash
+   adb shell pm grant com.opendroid com.termux.permission.RUN_COMMAND
+   ```
+4. Dans OpenDroid : **Terminal → puce « Termux »**, ou demander à l'agent
+   (« liste mes paquets Termux », « lance un script python… ») — l'outil `termux`
+   est disponible pour les agents.
+
+Les commandes tournent en arrière-plan et renvoient stdout, stderr et le code de
+sortie. Sans Termux installé, l'outil et l'onglet restent indisponibles avec un
+message explicite.
 
 ---
 

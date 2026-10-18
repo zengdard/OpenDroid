@@ -1,7 +1,8 @@
 package com.opendroid.ui.terminal
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Process
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +26,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -32,7 +35,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -48,51 +50,67 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.opendroid.termux.TermuxBridge
 import com.opendroid.tool.impl.Shell
 import com.opendroid.tool.impl.ShellResult
 import kotlinx.coroutines.launch
 
+private enum class TerminalBackend(val label: String) {
+    APP("app"),
+    TERMUX("termux"),
+    ROOT("root")
+}
+
 private data class TerminalEntry(
     val id: Long,
     val command: String,
-    val root: Boolean,
+    val backend: TerminalBackend,
     val running: Boolean,
     val result: ShellResult? = null
 )
 
 private val TerminalBg = Color(0xFF0B0B0D)
+private val TerminalBar = Color(0xFF16161A)
 private val TerminalText = Color(0xFFEDEDED)
 private val TerminalDim = Color(0xFF8E8E93)
 private val TerminalPrompt = Color(0xFF0A84FF)
 private val TerminalError = Color(0xFFFF453A)
 private val TerminalOk = Color(0xFF34C759)
 
-/** Terminal intégré : exécute des commandes shell, avec option root (`su`). */
+/** Terminal intégré : shell de l'app, environnant Termux, ou root (`su`). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TerminalScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val hasRoot = remember { Shell.hasRoot() }
+    val hasTermux = remember { TermuxBridge.isInstalled(context) }
     val entries = remember { mutableStateListOf<TerminalEntry>() }
     var input by remember { mutableStateOf("") }
-    var root by remember { mutableStateOf(false) }
+    var backend by remember { mutableStateOf(TerminalBackend.APP) }
     var running by remember { mutableStateOf(false) }
 
     fun execute(command: String) {
         val cmd = command.trim()
         if (cmd.isEmpty() || running) return
-        val entry = TerminalEntry(System.nanoTime(), cmd, root, true)
+        val entry = TerminalEntry(System.nanoTime(), cmd, backend, true)
         entries.add(entry)
         input = ""
         running = true
+        val selected = backend
         scope.launch {
-            val result = Shell.run(cmd, timeoutSec = 60, root = root)
+            val result = when (selected) {
+                TerminalBackend.APP -> Shell.run(cmd, timeoutSec = 60, root = false)
+                TerminalBackend.ROOT -> Shell.run(cmd, timeoutSec = 60, root = true)
+                TerminalBackend.TERMUX -> TermuxBridge.run(context, cmd, timeoutSec = 120)
+            }
             val index = entries.indexOfFirst { it.id == entry.id }
             if (index >= 0) entries[index] = entries[index].copy(running = false, result = result)
             running = false
@@ -111,7 +129,7 @@ fun TerminalScreen(onBack: () -> Unit) {
                     Column {
                         Text("Terminal", color = TerminalText, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "UID ${Process.myUid()}${if (root) " · root" else " · utilisateur app"}",
+                            "UID ${Process.myUid()} · ${backend.label}",
                             color = TerminalDim,
                             style = MaterialTheme.typography.labelSmall,
                             fontFamily = FontFamily.Monospace
@@ -124,21 +142,59 @@ fun TerminalScreen(onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    if (hasRoot) {
-                        Text("root", color = TerminalDim, style = MaterialTheme.typography.labelSmall)
-                        Spacer(Modifier.width(6.dp))
-                        Switch(checked = root, onCheckedChange = { root = it })
-                        Spacer(Modifier.width(4.dp))
-                    }
                     IconButton(onClick = { entries.clear() }) {
                         Icon(Icons.Default.DeleteSweep, "Effacer", tint = TerminalDim)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = TerminalBg)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = TerminalBar)
             )
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
+            // Sélecteur de backend
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BackendChip("App", backend == TerminalBackend.APP) { backend = TerminalBackend.APP }
+                if (hasTermux) {
+                    BackendChip("Termux", backend == TerminalBackend.TERMUX) { backend = TerminalBackend.TERMUX }
+                }
+                if (hasRoot) {
+                    BackendChip("Root", backend == TerminalBackend.ROOT) { backend = TerminalBackend.ROOT }
+                }
+            }
+
+            if (backend == TerminalBackend.TERMUX) {
+                Text(
+                    "Termux : allow-external-apps=true + permission RUN_COMMAND requise.",
+                    color = TerminalDim,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 2.dp)
+                )
+            }
+
+            if (!hasTermux) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Termux non installé.",
+                        color = TerminalDim,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    TextButton(onClick = {
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse("https://f-droid.org/packages/com.termux/"))
+                        )
+                    }) {
+                        Text("Installer (F-Droid)", color = TerminalPrompt, fontSize = 12.sp)
+                    }
+                }
+            }
+
             if (entries.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -150,8 +206,11 @@ fun TerminalScreen(onBack: () -> Unit) {
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            if (hasRoot) "Root disponible — active l'interrupteur pour su."
-                            else "Commandes exécutées avec l'UID de l'app (pas de root).",
+                            when (backend) {
+                                TerminalBackend.APP -> "Commandes exécutées avec l'UID de l'app."
+                                TerminalBackend.TERMUX -> "Commandes exécutées dans Termux (bash, pkg, python…)."
+                                TerminalBackend.ROOT -> "Commandes exécutées via su -c."
+                            },
                             color = TerminalDim,
                             style = MaterialTheme.typography.labelSmall
                         )
@@ -168,7 +227,7 @@ fun TerminalScreen(onBack: () -> Unit) {
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    if (entry.root) "# " else "$ ",
+                                    if (entry.backend == TerminalBackend.ROOT) "# " else "$ ",
                                     color = TerminalPrompt,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.SemiBold,
@@ -180,6 +239,15 @@ fun TerminalScreen(onBack: () -> Unit) {
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 14.sp
                                 )
+                                if (entry.backend != TerminalBackend.APP) {
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        entry.backend.label,
+                                        color = TerminalDim,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 10.sp
+                                    )
+                                }
                             }
                             Spacer(Modifier.height(4.dp))
                             if (entry.running) {
@@ -228,20 +296,23 @@ fun TerminalScreen(onBack: () -> Unit) {
                 Modifier.fillMaxWidth().padding(horizontal = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                listOf("ls -la /sdcard", "df -h", "dumpsys battery | head -12").forEach { quick ->
-                    TextButton(onClick = { execute(quick) }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)) {
+                listOf("ls -la ~", "df -h", "uname -a").forEach { quick ->
+                    TextButton(
+                        onClick = { execute(quick) },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
                         Text(quick, color = TerminalPrompt, fontSize = 11.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
                     }
                 }
             }
 
-            Surface(color = Color(0xFF1C1C1E), modifier = Modifier.fillMaxWidth()) {
+            Surface(color = TerminalBar, modifier = Modifier.fillMaxWidth()) {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        if (root) "#" else "$",
+                        if (backend == TerminalBackend.ROOT) "#" else "$",
                         color = TerminalPrompt,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -282,4 +353,19 @@ fun TerminalScreen(onBack: () -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun BackendChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label, fontSize = 12.sp, fontFamily = FontFamily.Monospace) },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = Color.Transparent,
+            labelColor = TerminalDim,
+            selectedContainerColor = TerminalPrompt.copy(alpha = 0.18f),
+            selectedLabelColor = TerminalPrompt
+        )
+    )
 }

@@ -50,8 +50,15 @@
 
     <uses-permission android:name="com.opendroid.permission.EXEC_TERMINAL" />
 
+    <!-- Exécution de commandes dans l'environnement Termux -->
+    <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
+
     <permission android:name="com.opendroid.permission.EXEC_TERMINAL"
         android:protectionLevel="dangerous" />
+
+    <queries>
+        <package android:name="com.termux" />
+    </queries>
 
     <application
         android:name=".OpenDroidApp"

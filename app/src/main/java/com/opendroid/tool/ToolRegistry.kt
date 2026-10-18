@@ -38,6 +38,7 @@ import com.opendroid.tool.impl.SwipeTool
 import com.opendroid.tool.impl.TapIdTool
 import com.opendroid.tool.impl.TapTool
 import com.opendroid.tool.impl.TaskTool
+import com.opendroid.tool.impl.TermuxTool
 import com.opendroid.tool.impl.TodoReadTool
 import com.opendroid.tool.impl.TodoWriteTool
 import com.opendroid.tool.impl.TypeTextTool
@@ -56,7 +57,7 @@ object ToolRegistry {
         // Fichiers (façon opencode)
         ReadTool(), WriteTool(), EditTool(), GlobTool(), GrepTool(), ListTool(),
         // Shell
-        BashTool(),
+        BashTool(), TermuxTool(),
         // Web
         WebFetchTool(), WebSearchTool(),
         // Agents
