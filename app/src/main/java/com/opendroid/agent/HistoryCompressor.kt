@@ -32,8 +32,14 @@ object HistoryCompressor {
         if (total <= CHAR_BUDGET) return history
 
         val split = history.size - KEEP_RECENT
-        val recent = history.subList(split, history.size).toList()
-        val transcript = history.subList(0, split).joinToString("\n") { render(it) }.take(MAX_TRANSCRIPT)
+        // Ne jamais couper entre un assistant `tool_calls` et ses résultats `tool`
+        // (sinon l'API refuse : "tool must be a response to a preceding tool_calls").
+        var safeSplit = split
+        while (safeSplit > 0 && history[safeSplit].role == Role.TOOL) safeSplit--
+        if (safeSplit <= 0) return history
+
+        val recent = history.subList(safeSplit, history.size).toList()
+        val transcript = history.subList(0, safeSplit).joinToString("\n") { render(it) }.take(MAX_TRANSCRIPT)
 
         val request = ChatRequest(
             model = model,

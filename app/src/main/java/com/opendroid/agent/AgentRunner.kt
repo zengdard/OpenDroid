@@ -88,6 +88,13 @@ class AgentRunner(
                 emit(AgentEvent.ContextCompressed(before, compressed.size))
             }
 
+            // Correspondance stricte assistant(tool_calls) ↔ tool : nettoie les orphelins.
+            val sanitized = HistorySanitizer.sanitize(history)
+            if (sanitized.size != history.size) {
+                history.clear()
+                history.addAll(sanitized)
+            }
+
             val specs = tools.values
                 .filter { agent.exposesTool(it.spec.id, globalPermission) }
                 .map { it.spec }
