@@ -231,7 +231,13 @@ class OpenDroidViewModel @Inject constructor(
             readTodos = { sessionStore.get(sessionId)?.todos ?: emptyList() }
         )
 
-        val runner = AgentRunner(provider, permissionConfig, _uiState.value.autoApprove, callbacks)
+        val runner = AgentRunner(
+            provider = provider,
+            globalPermission = permissionConfig,
+            autoApprove = _uiState.value.autoApprove,
+            callbacks = callbacks,
+            sessionId = sessionId
+        )
         val produced = withContext(Dispatchers.Default) {
             runner.run(agent, history, model)
         }

@@ -40,8 +40,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.opendroid.data.model.Message
 import com.opendroid.data.model.ProviderConfig
 import com.opendroid.data.model.ProviderKind
+import com.opendroid.provider.ChatRequest
+import com.opendroid.provider.ProviderEvent
+import com.opendroid.provider.ProviderFactory
 import com.opendroid.ui.OpenDroidViewModel
 import com.opendroid.ui.theme.CardShape
 import com.opendroid.ui.theme.spaceLG
@@ -105,6 +109,8 @@ fun ProviderEditScreen(vm: OpenDroidViewModel, providerId: String, onBack: () ->
     var baseUrl by remember { mutableStateOf(provider.baseUrl) }
     var apiKey by remember { mutableStateOf(provider.apiKey) }
     var model by remember { mutableStateOf(provider.model.ifBlank { provider.models.firstOrNull() ?: "" }) }
+    var testing by remember { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
@@ -157,7 +163,59 @@ fun ProviderEditScreen(vm: OpenDroidViewModel, providerId: String, onBack: () ->
                         Text("Utiliser")
                     }
                 }
+                Button(
+                    enabled = !testing && provider.kind.isRemote,
+                    onClick = {
+                        testing = true
+                        testResult = null
+                        scope.launch {
+                            testResult = testProvider(
+                                provider.copy(baseUrl = baseUrl, apiKey = apiKey, model = model),
+                                model
+                            )
+                            testing = false
+                        }
+                    }
+                ) { Text(if (testing) "Test…" else "Tester") }
+            }
+            testResult?.let {
+                Spacer(Modifier.height(spaceSM))
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (it.startsWith("✅")) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                )
             }
         }
     }
+}
+
+/**
+ * Envoie une requête minimale au provider pour valider la clé / l'endpoint.
+ * Utile notamment pour OpenCode Go (header de session + User-Agent dédiés).
+ */
+private suspend fun testProvider(config: ProviderConfig, model: String): String = try {
+    val provider = ProviderFactory.create(config, null)
+    val request = ChatRequest(
+        model = model,
+        system = "You are a connectivity test.",
+        messages = listOf(Message.user("Réponds simplement: ok")),
+        tools = emptyList(),
+        maxTokens = 16,
+        sessionId = "opendroid-connection-test"
+    )
+    var error: String? = null
+    var text = ""
+    provider.stream(request).collect { event ->
+        when (event) {
+            is ProviderEvent.TextDelta -> text += event.text
+            is ProviderEvent.ThinkingDelta -> {}
+            is ProviderEvent.Completed -> if (text.isBlank()) text = event.text
+            is ProviderEvent.Error -> error = event.message
+        }
+    }
+    if (error != null) "❌ $error"
+    else "✅ Connexion OK" + (if (text.isNotBlank()) " — ${text.trim().take(80)}" else "")
+} catch (e: Exception) {
+    "❌ ${e.message}"
 }

@@ -52,7 +52,9 @@ class AgentRunner(
     private val callbacks: EngineCallbacks,
     private val tools: Map<String, Tool> = ToolRegistry.byId,
     private val agentLookup: (String) -> AgentConfig = { BuiltInAgents.byId(it) },
-    private val silent: Boolean = false
+    private val silent: Boolean = false,
+    /** ID de session/conversation (transmis aux backends qui l'exigent, ex. OpenCode Go). */
+    private val sessionId: String = ""
 ) {
     companion object {
         private const val TAG = "AgentRunner"
@@ -85,7 +87,8 @@ class AgentRunner(
                 system = system,
                 messages = history,
                 tools = specs,
-                temperature = agent.temperature ?: 0.3f
+                temperature = agent.temperature ?: 0.3f,
+                sessionId = sessionId
             )
 
             var streamedText = StringBuilder()
@@ -197,7 +200,8 @@ class AgentRunner(
             callbacks = callbacks,
             tools = tools,
             agentLookup = agentLookup,
-            silent = true
+            silent = true,
+            sessionId = sessionId
         )
         val model = sub.model.ifBlank { parentModel }
         val produced = subRunner.run(sub, listOf(Message.user(prompt)), model, depth + 1)

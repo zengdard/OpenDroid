@@ -26,6 +26,12 @@ class OpenAiCompatibleProvider(private val config: ProviderConfig) : LlmProvider
         val body = buildBody(request)
         val headers = buildMap {
             if (config.apiKey.isNotBlank()) put("Authorization", "Bearer ${config.apiKey}")
+            // OpenCode Go exige un User-Agent de client dédié (pas un SDK/HTTP lib)
+            // et un identifiant de session stable pour le routage/prompt caching.
+            if (config.id.startsWith("opencode")) {
+                put("User-Agent", "opendroid/1.0")
+                if (request.sessionId.isNotBlank()) put("x-opencode-session", request.sessionId)
+            }
             if (config.id == "openrouter") {
                 put("HTTP-Referer", "https://opendroid.app")
                 put("X-Title", "OpenDroid")

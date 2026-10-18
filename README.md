@@ -94,6 +94,17 @@ Les permissions sont évaluées comme dans opencode :
 | OpenRouter / Groq / Ollama / LM Studio | `OPENAI_COMPATIBLE` | presets inclus |
 | Personnalisé | `OPENAI_COMPATIBLE` | base URL + clé + modèle |
 
+> **OpenCode Zen / Go** : renseigne la clé `OPENCODE_API_KEY` (Console → Create API key).
+> Les endpoints Go exigent un **User-Agent dédié** (`opendroid/1.0`) et un identifiant de
+> session stable dans le header **`x-opencode-session`** — OpenDroid l'envoie
+> automatiquement (ID = session de conversation).
+> Tous les modèles Go ne passent pas par `/chat/completions` : les modèles `qwen*`,
+> `minimax-m3` et `claude-haiku-5-5` utilisent l'API *anthropic*, `grok*`, `gpt-*-luna`
+> et `muse-spark*` l'API *responses*, et Gemini l'API *google*. Les modèles listés dans
+> le preset Go sont ceux servis via `/chat/completions` (deepseek, kimi, glm, mimo,
+> longcat, hy, step, beam…).
+> L'écran provider propose un bouton **Tester** pour valider la clé et l'endpoint.
+
 Les clés API sont saisies dans **Paramètres → Providers** et stockées localement.
 Le modèle on-device se télécharge depuis **Paramètres → Modèle on-device**.
 

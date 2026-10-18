@@ -56,10 +56,14 @@ data class ProviderConfig(
                 kind = ProviderKind.OPENAI_COMPATIBLE,
                 name = "OpenCode Go",
                 baseUrl = "https://opencode.ai/inference/go/openai/v1",
+                // Modèles servis via /chat/completions (endpoints OpenAI-compatibles).
+                // (Qwen*, MiniMax M3, Claude Haiku 5.5 → API anthropic ; Grok/GPT Luna/Muse
+                //  Spark → /responses ; Gemini → API google : non gérés par ce provider.)
                 models = listOf(
-                    "deepseek-v4.1-flash", "kimi-k3", "glm-5.3-flash", "qwen3.8-max",
-                    "grok-4.7", "minimax-m3", "gpt-5.6-luna", "claude-haiku-5-5",
-                    "mimo-v2.6-pro", "qwen3.8-flash"
+                    "deepseek-v4.1-flash", "deepseek-v4-pro", "kimi-k3", "kimi-k2.7-code",
+                    "glm-5.3-flash", "glm-5.3", "glm-5.2", "mimo-v2.6-pro", "mimo-v2.6-flash",
+                    "mimo-v2.5-pro", "mimo-v2.5", "longcat-2.0", "hy3", "hy4-preview",
+                    "space-bunny", "step-5-preview", "longcat-2.5-preview-free", "beam-free"
                 )
             ),
             ProviderConfig(

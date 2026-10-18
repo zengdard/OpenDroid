@@ -11,7 +11,12 @@ data class ChatRequest(
     val messages: List<Message>,
     val tools: List<ToolSpec>,
     val temperature: Float = 0.3f,
-    val maxTokens: Int = 8192
+    val maxTokens: Int = 8192,
+    /**
+     * Identifiant stable de conversation, transmis aux backends qui l'exigent
+     * (ex. OpenCode Go : header `x-opencode-session`).
+     */
+    val sessionId: String = ""
 )
 
 /** Événements émis par un provider pendant la génération. */
