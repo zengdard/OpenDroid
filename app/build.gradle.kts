@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.raissummit.orchestrator"
+    namespace = "com.opendroid"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.raissummit.orchestrator"
+        applicationId = "com.opendroid"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
@@ -46,6 +46,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -60,7 +61,7 @@ android {
 }
 
 dependencies {
-    // LiteRT-LM (Google AI Edge)
+    // LiteRT-LM (on-device inference, Google AI Edge)
     implementation("com.google.ai.edge.litertlm:litertlm-android:0.13.1")
 
     // Compose BOM
@@ -80,14 +81,14 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Hilt
-    implementation("com.google.dagger:hilt-android:2.55")
-    ksp("com.google.dagger:hilt-compiler:2.55")
+    implementation("com.google.dagger:hilt-android:2.57.2")
+    ksp("com.google.dagger:hilt-compiler:2.57.2")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // JSON
     implementation("com.google.code.gson:gson:2.11.0")
 
-    // OkHttp for model download
+    // HTTP (provider APIs + model download)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Google Play Services

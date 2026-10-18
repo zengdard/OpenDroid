@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "RAISSUMMIT_GOOGLE_REMOTE"
+rootProject.name = "OpenDroid"
 include(":app")

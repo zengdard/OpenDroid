@@ -4,7 +4,8 @@
 # Gson
 -keepattributes Signature
 -keepattributes *Annotation*
--keep class com.raissummit.orchestrator.data.models.** { *; }
+-keep class com.opendroid.data.model.** { *; }
+-keep class com.opendroid.provider.** { *; }
 
 # OkHttp
 -dontwarn okhttp3.**
